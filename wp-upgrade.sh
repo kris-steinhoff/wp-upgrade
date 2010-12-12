@@ -90,6 +90,7 @@ if [ ! -r "${site}/wp-includes/version.php" ]; then
 fi
 
 wp_version=`echo_php_var '$wp_version' "${site}/wp-includes/version.php"`
+echo "Current Wordpress version: ${wp_version}"
 
 if [ "x${wp_version}" = "x" ]; then
     warning "Could not read Wordpress version from ${site}"
@@ -158,24 +159,29 @@ site_url=`echo 'select option_value from spointy_wp_options where option_name = 
 # read db for site name, use in default backup file name
 query="SELECT option_value FROM ${table_prefix}options WHERE option_name = 'siteurl';"
 siteurl=`echo $query | mysql $db_options | tail -1 | sed s/\ /_/g`
-echo Disable the Wordpress plugins: ${siteurl}wp-admin/plugins.php
+echo Disable the Wordpress plugins: ${siteurl}/wp-admin/plugins.php
 check_point || exit 1
-exit
 
+rm -rf .wp-upgrade_tmp || error "Could not delete previous temporary directory ${PWD}/.wp-upgrade_tmp"
+mkdir .wp-upgrade_tmp || error "Could not create temporary directory ${PWD}/.wp-upgrade_tmp"
+cd .wp-upgrade_tmp
 
-# create backup
-# site_name_YYYY_MM_DD-HH:MM:SS/
-#   wordpress/
-#   database.mysql
+notice "Fetching the latest version on Wordpress: http://wordpress.org/latest.tar.gz"
+wget http://wordpress.org/latest.tar.gz || error "Could not download the latest version on Wordpress."
 
-# archive and compress backup site_name_YYYY_MM_DD-HH:MM:SS.tar.bz2
+notice "Decompressing latest.tar.gz"
+tar xf latest.tar.gz || error "Could not decompress latest.tar.gz"
 
-# prompt to disable plugins
+cd ..
 
-# download latest.tar.gz
+notice "Copying Wordpress files to ${site}"
+cp -r .wp-upgrade_tmp/wordpress/* ${site}/ || error "Could not copy Wordpress files to ${site}"
 
-# unpack and copy
+echo Disable the Wordpress plugins: ${siteurl}wp-admin/plugins.php
 
-# display new version number
+wp_version=`echo_php_var '$wp_version' "${site}/wp-includes/version.php"`
+echo "New Wordpress version: ${wp_version}"
 
+notice "Database upgrade may be necessary: ${siteurl}//wp-admin/upgrade.php"
 
+exit 0
